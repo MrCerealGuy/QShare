@@ -2,5 +2,7 @@
 
 # Module Requirements
 
-pip install pyqrcode \\
+```console
+pip install pyqrcode
 pip install pypng
+```
