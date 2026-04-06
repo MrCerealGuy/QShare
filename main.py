@@ -6,13 +6,16 @@
 # -----------------------------------------------------------------------------
 
 import socket
-import socketserver
 import webbrowser
 import win32security
 import os
 import pyqrcode
-from flask import Flask, request, render_template, url_for
+from flask import Flask, request, render_template
 
+# -----------------------------------------------------------------------------
+
+app = Flask(__name__)
+PORT = 5100
 
 # -----------------------------------------------------------------------------
 
@@ -48,8 +51,26 @@ def show_qr():
 
 # -----------------------------------------------------------------------------
 
-app = Flask(__name__)
-PORT = 5100
+@app.route('/')
+def hello_world():
+    return 'Hello World'
+
+# -----------------------------------------------------------------------------
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+
+        if authenticate(username, password):
+            return f"Hello {username}, POST request received"
+        else:
+            return f"Login failed"
+
+    return render_template('login.html')
+
+# -----------------------------------------------------------------------------
 
 # changing the directory to access the files desktop with the help of os module
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -59,17 +80,6 @@ IP = get_ip()
 
 # show QR code
 show_qr()
-
-@app.route('/')
-def hello_world():
-    return 'Hello World'
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        name = request.form['user']
-        return f"Hello {name}, POST request received"
-    return render_template('login.html')
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=PORT)
