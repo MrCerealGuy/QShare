@@ -1,0 +1,42 @@
+<!--Template file-->
+<!--templates/files.html.j2-->
+<h2>Directory Listing Example</h2>
+<table class="table table-striped table-responsive">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Modified Time</th>
+            <th>Size</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>
+                <a href="{{ url_for('reports', req_path=data['parentFolder']) }}">
+                    <span><i class="bi bi-folder-symlink" style="margin-right:0.3em"></i>Parent Directory</span>
+                </a>
+            </td>
+            <td></td>
+            <td></td>
+        </tr>
+        {% for file_obj in data['files'] %}
+        <tr>
+            <td>
+                <a href="{{ url_for('reports', req_path=file_obj['relPath']) }}">
+                    <span><i class="{{file_obj['f_icon']}}" style="margin-right:0.3em"></i>{{ file_obj['name'] }}</span>
+                </a>
+            </td>
+            <td>{{file_obj['mTime']}}</td>
+            <td>{{file_obj['size']}}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+
+<style>
+table {table-layout:fixed; width:100%;}
+table td, th {word-wrap:break-word;}
+th {text-align: left;}
+</style>

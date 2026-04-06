@@ -9,13 +9,18 @@ import socket
 import webbrowser
 import win32security
 import os
+import datetime as dt
 import pyqrcode
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, url_for, redirect, abort, send_file
+from pathlib import Path
+from werkzeug.security import safe_join
 
 # -----------------------------------------------------------------------------
 
 app = Flask(__name__)
 PORT = 5100
+access_granted = False
+FolderPath = r"C:\Clonk"
 
 # -----------------------------------------------------------------------------
 
@@ -44,7 +49,7 @@ def show_qr():
     fn_svg = os.path.join(os.environ['USERPROFILE'], 'myqr.svg')
     fn_qrh = os.path.dirname(os.path.abspath(__file__)) + '/templates/qr.html'
 
-    url = pyqrcode.create(IP + "/login")
+    url = pyqrcode.create(IP)
     url.svg(fn_svg, scale=8)
 
     webbrowser.open(fn_qrh)
@@ -52,23 +57,113 @@ def show_qr():
 # -----------------------------------------------------------------------------
 
 @app.route('/')
-def hello_world():
-    return 'Hello World'
+def index():
+    global access_granted
+
+    if not access_granted:
+        return redirect(url_for('login'))
+
+    return redirect(url_for('access'))
 
 # -----------------------------------------------------------------------------
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    global access_granted
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
         if authenticate(username, password):
-            return f"Hello {username}, POST request received"
+            access_granted = True
+            return redirect(url_for('access'))
         else:
             return f"Login failed"
 
     return render_template('login.html')
+
+# -----------------------------------------------------------------------------
+
+@app.route('/access')
+def access():
+    global access_granted
+
+    if not access_granted:
+        return redirect(url_for('login'))
+
+    return redirect(url_for('reports'))
+
+# -----------------------------------------------------------------------------
+
+@app.route('/reports/', defaults={'req_path': ''})
+@app.route('/reports/<path:req_path>')
+def reports(req_path):
+    global access_granted
+
+    if not access_granted:
+        return redirect(url_for('login'))
+
+    # Join the base and the requested path
+    # could have done os.path.join, but safe_join ensures that files are not fetched from parent folders of the base folder
+    abs_path = safe_join(FolderPath, req_path)
+
+    # Return 404 if path doesn't exist
+    if not os.path.exists(abs_path):
+        return abort(404)
+
+    # Check if path is a file and serve
+    if os.path.isfile(abs_path):
+        return send_file(abs_path)
+
+    # Show directory contents
+    def f_obj_from_scan(x):
+        fileStat = x.stat()
+
+        # return file information for rendering
+        return {'name': x.name,
+                'fIcon': "bi bi-folder-fill" if os.path.isdir(x.path) else get_icon_class_for_filename(x.name),
+                'relPath': os.path.relpath(x.path, FolderPath).replace("\\", "/"),
+                'mTime': get_time_stamp_string(fileStat.st_mtime),
+                'size': get_readable_byte_size(fileStat.st_size)}
+
+    file_objs = [f_obj_from_scan(x) for x in os.scandir(abs_path)]
+
+    # get parent directory url
+    parentFolderPath = os.path.relpath(
+        Path(abs_path).parents[0], FolderPath).replace("\\", "/")
+
+    return render_template('files.html.j2', data={'files': file_objs,
+                                                 'parentFolder': parentFolderPath})
+
+# -----------------------------------------------------------------------------
+
+def get_readable_byte_size(num, suffix='B') -> str:
+    for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+
+    return "%.1f%s%s" % (num, 'Y', suffix)
+
+# -----------------------------------------------------------------------------
+
+def get_time_stamp_string(t_sec: float) -> str:
+    t_obj = dt.datetime.fromtimestamp(t_sec)
+    t_str = dt.datetime.strftime(t_obj, '%Y-%m-%d %H:%M:%S')
+
+    return t_str
+
+# -----------------------------------------------------------------------------
+
+def get_icon_class_for_filename(f_name):
+    file_ext = Path(f_name).suffix
+    file_ext = file_ext[1:] if file_ext.startswith(".") else file_ext
+    file_types = ["aac", "ai", "bmp", "cs", "css", "csv", "doc", "docx", "exe", "gif", "heic", "html", "java", "jpg", "js", "json", "jsx", "key", "m4p", "md", "mdx", "mov", "mp3",
+                 "mp4", "otf", "pdf", "php", "png", "pptx", "psd", "py", "raw", "rb", "sass", "scss", "sh", "sql", "svg", "tiff", "tsx", "ttf", "txt", "wav", "woff", "xlsx", "xml", "yml"]
+    file_icon_class = f"bi bi-filetype-{file_ext}" if file_ext in file_types else "bi bi-file-earmark"
+
+    return file_icon_class
 
 # -----------------------------------------------------------------------------
 
@@ -82,5 +177,5 @@ IP = get_ip()
 show_qr()
 
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=PORT)
+    app.run(host="0.0.0.0", port=PORT, debug=True)
 
