@@ -118,23 +118,23 @@ def reports(req_path):
 
     # Show directory contents
     def f_obj_from_scan(x):
-        fileStat = x.stat()
+        file_stat = x.stat()
 
         # return file information for rendering
         return {'name': x.name,
-                'fIcon': "bi bi-folder-fill" if os.path.isdir(x.path) else get_icon_class_for_filename(x.name),
-                'relPath': os.path.relpath(x.path, FolderPath).replace("\\", "/"),
-                'mTime': get_time_stamp_string(fileStat.st_mtime),
-                'size': get_readable_byte_size(fileStat.st_size)}
+                'f_icon': "bi bi-folder-fill" if os.path.isdir(x.path) else get_icon_class_for_filename(x.name),
+                'rel_path': os.path.relpath(x.path, FolderPath).replace("\\", "/"),
+                'm_time': get_time_stamp_string(file_stat.st_mtime),
+                'size': get_readable_byte_size(file_stat.st_size)}
 
     file_objs = [f_obj_from_scan(x) for x in os.scandir(abs_path)]
 
     # get parent directory url
-    parentFolderPath = os.path.relpath(
+    parent_folder_path = os.path.relpath(
         Path(abs_path).parents[0], FolderPath).replace("\\", "/")
 
     return render_template('files.html.j2', data={'files': file_objs,
-                                                 'parentFolder': parentFolderPath})
+                                                 'parent_folder': parent_folder_path})
 
 # -----------------------------------------------------------------------------
 
