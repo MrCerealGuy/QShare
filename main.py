@@ -1,8 +1,10 @@
 # -----------------------------------------------------------------------------
-# QShare
+# QShare - A simple file sharing app
+#
 # by Andreas Zahnleiter <a.zahnleiter@gmx.de>
 # -----------------------------------------------------------------------------
 # 2026-04-04 - az - created
+# 2026-04-06 - az - implemented flask and directory rendering
 # -----------------------------------------------------------------------------
 
 import socket
