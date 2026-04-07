@@ -7,8 +7,16 @@
 # 2026-04-06 - az - implemented flask and directory rendering
 # -----------------------------------------------------------------------------
 
+import sys
 import socket
 import webbrowser
+
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QPushButton,
+    QFileDialog, QVBoxLayout
+)
+from PySide6.QtCore import Qt
+
 import win32security
 import os
 import datetime as dt
@@ -22,7 +30,36 @@ from werkzeug.security import safe_join
 app = Flask(__name__)
 PORT = 5100
 access_granted = False
-FolderPath = r"C:\Clonk"
+#folder_path = os.path.join(os.environ['USERPROFILE'])
+folder_path = ""
+
+# -----------------------------------------------------------------------------
+
+class MainWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("QShare")
+
+        button = QPushButton("Select folder...")
+        button.clicked.connect(self.select_directory)
+
+        layout = QVBoxLayout()
+        layout.addWidget(button)
+        self.setLayout(layout)
+
+    def select_directory(self):
+        global folder_path
+
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            "Select folder to share"
+        )
+
+        if directory:
+            folder_path = directory
+
+        self.close()
 
 # -----------------------------------------------------------------------------
 
@@ -108,7 +145,7 @@ def files(req_path):
 
     # Join the base and the requested path
     # could have done os.path.join, but safe_join ensures that files are not fetched from parent folders of the base folder
-    abs_path = safe_join(FolderPath, req_path)
+    abs_path = safe_join(folder_path, req_path)
 
     # Return 404 if path doesn't exist
     if not os.path.exists(abs_path):
@@ -125,7 +162,7 @@ def files(req_path):
         # return file information for rendering
         return {'name': x.name,
                 'f_icon': "bi bi-folder-fill" if os.path.isdir(x.path) else get_icon_class_for_filename(x.name),
-                'rel_path': os.path.relpath(x.path, FolderPath).replace("\\", "/"),
+                'rel_path': os.path.relpath(x.path, folder_path).replace("\\", "/"),
                 'm_time': get_time_stamp_string(file_stat.st_mtime),
                 'size': get_readable_byte_size(file_stat.st_size)}
 
@@ -133,7 +170,7 @@ def files(req_path):
 
     # get parent directory url
     parent_folder_path = os.path.relpath(
-        Path(abs_path).parents[0], FolderPath).replace("\\", "/")
+        Path(abs_path).parents[0], folder_path).replace("\\", "/")
 
     return render_template('files.html.j2', data={'files': file_objs,
                                                  'parent_folder': parent_folder_path})
@@ -175,9 +212,21 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # finding the IP address of the PC
 IP = get_ip()
 
-# show QR code
-show_qr()
-
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=PORT, debug=True)
+    qt_app = QApplication(sys.argv)
+
+    window = MainWindow()
+    window.resize(300, 100)
+    window.show()
+
+    qt_app.exec()
+
+    if folder_path:
+        # show QR code
+        show_qr()
+
+        # run server
+        app.run(host="0.0.0.0", port=PORT)
+
+    sys.exit(0)
 
