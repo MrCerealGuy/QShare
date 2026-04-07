@@ -1,5 +1,13 @@
 # QShare
 
+A simple file sharing app for Windows 10/11 -> Mobile.
+
+# Software Requirements
+
+Download an install Python:
+
+[]()https://www.python.org/downloads/
+
 # Module Requirements
 
 ```console
