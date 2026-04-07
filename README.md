@@ -18,7 +18,11 @@ pip install flask
 
 # Screenshots
 
-Start QShare on Windows. Scan QR Code with your Smartphone.
+Start QShare on Windows. Select folder to share.
+
+![](doc/screenshot_0.jpg)
+
+Scan QR Code with your Smartphone.
 
 ![](doc/screenshot_1.jpg)
 

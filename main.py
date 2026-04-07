@@ -5,15 +5,18 @@
 # -----------------------------------------------------------------------------
 # 2026-04-04 - az - created
 # 2026-04-06 - az - implemented flask and directory rendering
+# 2026-04-07 - az - MainWindow with Open Directory dialog
+# 2026-04-07 - az - v1.0
 # -----------------------------------------------------------------------------
 
 import sys
 import socket
 import webbrowser
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QApplication, QWidget, QPushButton,
-    QFileDialog, QVBoxLayout
+    QFileDialog, QVBoxLayout, QLabel
 )
 from PySide6.QtCore import Qt
 
@@ -39,12 +42,41 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("QShare")
+        self.setWindowTitle("QShare App v1.0")
 
+        app_icon = QIcon("static/icon-app.png")
+        self.setWindowIcon(app_icon)
+
+        self.setWindowFlags(
+            Qt.Window |
+            Qt.WindowMinimizeButtonHint |
+            Qt.WindowCloseButtonHint
+        )
+
+        # Layout
+        layout = QVBoxLayout()
+
+        # Label
+        label = QLabel("QShare")
+
+        label.setFixedSize(300, 50)
+        label.setAlignment(Qt.AlignHCenter)
+
+        # Font
+        font = label.font()
+        font.setBold(True)
+        font.setPointSize(24)
+        label.setFont(font)
+
+        # Color
+        label.setStyleSheet("color: green;")
+
+        layout.addWidget(label)
+
+        # Button
         button = QPushButton("Select folder...")
         button.clicked.connect(self.select_directory)
 
-        layout = QVBoxLayout()
         layout.addWidget(button)
         self.setLayout(layout)
 
@@ -86,7 +118,7 @@ def get_ip():
 
 def show_qr():
     fn_svg = os.path.dirname(os.path.abspath(__file__)) + '/static/myqr.svg'
-    fn_qrh = os.path.dirname(os.path.abspath(__file__)) + '/templates/qr.html'
+    fn_qrh = os.path.dirname(os.path.abspath(__file__)) + '/static/qr.html'
 
     url = pyqrcode.create(IP)
     url.svg(fn_svg, scale=8)
