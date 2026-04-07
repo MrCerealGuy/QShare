@@ -48,7 +48,7 @@ def get_ip():
 # -----------------------------------------------------------------------------
 
 def show_qr():
-    fn_svg = os.path.join(os.environ['USERPROFILE'], 'myqr.svg')
+    fn_svg = os.path.dirname(os.path.abspath(__file__)) + '/static/myqr.svg'
     fn_qrh = os.path.dirname(os.path.abspath(__file__)) + '/templates/qr.html'
 
     url = pyqrcode.create(IP)
@@ -81,9 +81,9 @@ def login():
             access_granted = True
             return redirect(url_for('access'))
         else:
-            return f"Login failed"
+            return render_template('login-failed.html.j2')
 
-    return render_template('login.html')
+    return render_template('login.html.j2')
 
 # -----------------------------------------------------------------------------
 
@@ -94,13 +94,13 @@ def access():
     if not access_granted:
         return redirect(url_for('login'))
 
-    return redirect(url_for('reports'))
+    return redirect(url_for('files'))
 
 # -----------------------------------------------------------------------------
 
-@app.route('/reports/', defaults={'req_path': ''})
-@app.route('/reports/<path:req_path>')
-def reports(req_path):
+@app.route('/files/', defaults={'req_path': ''})
+@app.route('/files/<path:req_path>')
+def files(req_path):
     global access_granted
 
     if not access_granted:
