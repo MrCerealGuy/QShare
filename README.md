@@ -22,7 +22,7 @@ Start QShare on Windows. Select folder to share.
 
 ![](doc/screenshot_0.jpg)
 
-Scan QR Code with your Smartphone.
+Scan QR Code with your smartphone.
 
 ![](doc/screenshot_1.jpg)
 

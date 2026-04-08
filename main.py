@@ -11,9 +11,9 @@
 
 import sys
 import socket
-import webbrowser
+import threading
 
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QWidget, QPushButton,
     QFileDialog, QVBoxLayout, QLabel
@@ -33,7 +33,6 @@ from werkzeug.security import safe_join
 app = Flask(__name__)
 PORT = 5100
 access_granted = False
-#folder_path = os.path.join(os.environ['USERPROFILE'])
 folder_path = ""
 
 # -----------------------------------------------------------------------------
@@ -80,8 +79,10 @@ class MainWindow(QWidget):
         layout.addWidget(button)
         self.setLayout(layout)
 
+    # -----------------------------------------------------------------------------
+
     def select_directory(self):
-        global folder_path
+        global folder_path, qr_win
 
         directory = QFileDialog.getExistingDirectory(
             self,
@@ -91,7 +92,82 @@ class MainWindow(QWidget):
         if directory:
             folder_path = directory
 
+            qr_win.gen_qr()
+            qr_win.load_qr()
+            qr_win.show()
+
         self.close()
+
+# -----------------------------------------------------------------------------
+
+class QRWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self._server_started = False
+
+        self.setWindowTitle("Scan QR Code")
+
+        app_icon = QIcon("static/icon-app.png")
+        self.setWindowIcon(app_icon)
+
+        self.setWindowFlags(
+            Qt.Window |
+            Qt.WindowMinimizeButtonHint |
+            Qt.WindowCloseButtonHint
+        )
+
+        layout = QVBoxLayout()
+        self.layout = layout
+
+        pic = QLabel(self)
+        self.pic = pic
+
+        layout.addWidget(pic)
+        self.setLayout(layout)
+
+    # -----------------------------------------------------------------------------
+
+    def load_qr(self):
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        image_path = os.path.join(base_path, "static", "myqr.svg")
+
+        pixmap = QPixmap(image_path)
+
+        if pixmap.isNull():
+            print("Fehler: Bild nicht gefunden:", image_path)
+
+        self.pic.setPixmap(pixmap)
+        self.pic.setScaledContents(True)
+
+    # -----------------------------------------------------------------------------
+
+    def gen_qr(self):
+        fn_svg = os.path.dirname(os.path.abspath(__file__)) + '/static/myqr.svg'
+
+        url = pyqrcode.create(IP)
+        url.svg(fn_svg, scale=8)
+
+    # -----------------------------------------------------------------------------
+
+    def showEvent(self, event):
+        global app
+
+        super().showEvent(event)
+
+        if not self._server_started:
+            self._server_started = True
+            self.start_server()
+
+    # -----------------------------------------------------------------------------
+
+    def start_server(self):
+        thread = threading.Thread(target=self.run_server, daemon=True)
+        thread.start()
+
+    # -----------------------------------------------------------------------------
+
+    def run_server(self):
+        app.run(host="0.0.0.0", port=PORT)
 
 # -----------------------------------------------------------------------------
 
@@ -113,17 +189,6 @@ def get_ip():
     ip = "http://" + s.getsockname()[0] + ":" + str(PORT)
 
     return ip
-
-# -----------------------------------------------------------------------------
-
-def show_qr():
-    fn_svg = os.path.dirname(os.path.abspath(__file__)) + '/static/myqr.svg'
-    fn_qrh = os.path.dirname(os.path.abspath(__file__)) + '/static/qr.html'
-
-    url = pyqrcode.create(IP)
-    url.svg(fn_svg, scale=8)
-
-    webbrowser.open(fn_qrh)
 
 # -----------------------------------------------------------------------------
 
@@ -251,14 +316,16 @@ if __name__ == '__main__':
     window.resize(300, 100)
     window.show()
 
+    qr_win = QRWindow()
+    qr_win.resize(300, 100)
+
     qt_app.exec()
 
+    """
     if folder_path:
-        # show QR code
-        show_qr()
-
         # run server
         app.run(host="0.0.0.0", port=PORT)
+    """
 
     sys.exit(0)
 
