@@ -14,7 +14,11 @@ Download an install Python:
 pip install pyqrcode
 pip install pypng
 pip install flask
+pip install pyinstaller
 ```
+
+# Build App
+pyinstaller main.py --onefile --windowed --name "QShare" --icon app.ico --add-data "static;static" --add-data "templates;templates"
 
 # Screenshots
 

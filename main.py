@@ -7,6 +7,9 @@
 # 2026-04-06 - az - implemented flask and directory rendering
 # 2026-04-07 - az - MainWindow with Open Directory dialog
 # 2026-04-07 - az - v1.0
+# 2026-07-08 - az - show QR Code in own window, not in browser
+# 2026-07-08 - az - run flask process in separate thread
+# 2026-07-08 - az - v1.1
 # -----------------------------------------------------------------------------
 
 import sys
@@ -41,9 +44,9 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("QShare App v1.0")
+        self.setWindowTitle("QShare App v1.1")
 
-        app_icon = QIcon("static/icon-app.png")
+        app_icon = QIcon(resource_path("static/icon-app.png"))
         self.setWindowIcon(app_icon)
 
         self.setWindowFlags(
@@ -107,7 +110,7 @@ class QRWindow(QWidget):
 
         self.setWindowTitle("Scan QR Code")
 
-        app_icon = QIcon("static/icon-app.png")
+        app_icon = QIcon(resource_path("static/icon-app.png"))
         self.setWindowIcon(app_icon)
 
         self.setWindowFlags(
@@ -128,8 +131,9 @@ class QRWindow(QWidget):
     # -----------------------------------------------------------------------------
 
     def load_qr(self):
-        base_path = os.path.dirname(os.path.abspath(__file__))
-        image_path = os.path.join(base_path, "static", "myqr.svg")
+        #base_path = os.path.dirname(os.path.abspath(__file__))
+        #image_path = os.path.join(base_path, "static", "myqr.svg")
+        image_path = resource_path("static/myqr.svg");
 
         pixmap = QPixmap(image_path)
 
@@ -142,7 +146,8 @@ class QRWindow(QWidget):
     # -----------------------------------------------------------------------------
 
     def gen_qr(self):
-        fn_svg = os.path.dirname(os.path.abspath(__file__)) + '/static/myqr.svg'
+        #fn_svg = os.path.dirname(os.path.abspath(__file__)) + '/static/myqr.svg'
+        fn_svg = resource_path("static/myqr.svg")
 
         url = pyqrcode.create(IP)
         url.svg(fn_svg, scale=8)
@@ -167,7 +172,15 @@ class QRWindow(QWidget):
     # -----------------------------------------------------------------------------
 
     def run_server(self):
-        app.run(host="0.0.0.0", port=PORT)
+        app.run(host="0.0.0.0", port=PORT, use_reloader=False, debug=False)
+
+# -----------------------------------------------------------------------------
+
+def resource_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, relative_path)
+
+    return os.path.join(os.path.abspath("."), relative_path)
 
 # -----------------------------------------------------------------------------
 
@@ -320,12 +333,6 @@ if __name__ == '__main__':
     qr_win.resize(300, 100)
 
     qt_app.exec()
-
-    """
-    if folder_path:
-        # run server
-        app.run(host="0.0.0.0", port=PORT)
-    """
 
     sys.exit(0)
 
