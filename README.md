@@ -18,7 +18,9 @@ pip install pyinstaller
 ```
 
 # Build App
+```console
 pyinstaller main.py --onefile --windowed --name "QShare" --icon app.ico --add-data "static;static" --add-data "templates;templates"
+```
 
 # Screenshots
 
