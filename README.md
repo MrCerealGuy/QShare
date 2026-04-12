@@ -63,8 +63,17 @@ qtwidgets==1.1
 ```
 
 # Build App
+
+All bundled in one EXE (~ 51 MB):
+
 ```console
 pyinstaller QShare.spec
+```
+
+EXE (~ 5 MB) + Directory (~ 116 MB):
+
+```console
+pyinstaller main.py --onedir --add-data "static;static" --add-data "templates;templates"
 ```
 
 # Screenshots

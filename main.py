@@ -46,7 +46,7 @@ class MainWindow(QWidget):
 
         self.setWindowTitle("QShare App v1.1")
 
-        app_icon = QIcon(resource_path("static/icon-app.png"))
+        app_icon = QIcon(resource_path("static\\icon-app.png"))
         self.setWindowIcon(app_icon)
 
         self.setWindowFlags(
@@ -110,7 +110,7 @@ class QRWindow(QWidget):
 
         self.setWindowTitle("Scan QR Code")
 
-        app_icon = QIcon(resource_path("static/icon-app.png"))
+        app_icon = QIcon(resource_path("static\\icon-app.png"))
         self.setWindowIcon(app_icon)
 
         self.setWindowFlags(
@@ -133,7 +133,7 @@ class QRWindow(QWidget):
     def load_qr(self):
         #base_path = os.path.dirname(os.path.abspath(__file__))
         #image_path = os.path.join(base_path, "static", "myqr.svg")
-        image_path = resource_path("static/myqr.svg");
+        image_path = resource_path("static\\myqr.svg");
 
         pixmap = QPixmap(image_path)
 
@@ -147,7 +147,7 @@ class QRWindow(QWidget):
 
     def gen_qr(self):
         #fn_svg = os.path.dirname(os.path.abspath(__file__)) + '/static/myqr.svg'
-        fn_svg = resource_path("static/myqr.svg")
+        fn_svg = resource_path("static\\myqr.svg")
 
         url = pyqrcode.create(IP)
         url.svg(fn_svg, scale=8)
