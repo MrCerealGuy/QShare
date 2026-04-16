@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# QShare - A simple file sharing app
+# QShare - A simple file sharing app for Windows 10/11
 #
 # by Andreas Zahnleiter <a.zahnleiter@gmx.de>
 # -----------------------------------------------------------------------------
@@ -10,16 +10,19 @@
 # 2026-07-08 - az - show QR Code in own window, not in browser
 # 2026-07-08 - az - run flask process in separate thread
 # 2026-07-08 - az - v1.1
+# 2026-04-16 - az - User-defined login credentials; OS platform check
+# 2026-04-16 - az - v1.2
 # -----------------------------------------------------------------------------
 
 import sys
 import socket
 import threading
+from enum import Enum
 
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QIcon, QPixmap, QColor
 from PySide6.QtWidgets import (
     QApplication, QWidget, QPushButton,
-    QFileDialog, QVBoxLayout, QLabel
+    QFileDialog, QVBoxLayout, QLabel, QCheckBox, QLineEdit, QMessageBox
 )
 from PySide6.QtCore import Qt
 
@@ -33,10 +36,30 @@ from werkzeug.security import safe_join
 
 # -----------------------------------------------------------------------------
 
-app = Flask(__name__)
-PORT = 5100
-access_granted = False
-folder_path = ""
+class LoginMethod(Enum):
+    WIN_AUTH = 1
+    USR_AUTH = 2
+
+# -----------------------------------------------------------------------------
+
+class AppGlobal:
+    def __init__(self):
+        # App
+        self.title = "QShare App"
+        self.version = "v1.2"
+
+        # Server
+        self.app = Flask(__name__)
+        self.PORT = 5100
+        self.access_granted = False
+        self.folder_path = ""
+
+        # Login
+        self.login_method = LoginMethod.WIN_AUTH
+        self.username = ""
+        self.password = ""
+
+appGlobal = AppGlobal()
 
 # -----------------------------------------------------------------------------
 
@@ -44,7 +67,7 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("QShare App v1.1")
+        self.setWindowTitle(appGlobal.title + " " + appGlobal.version)
 
         app_icon = QIcon(resource_path("static\\icon-app.png"))
         self.setWindowIcon(app_icon)
@@ -75,17 +98,53 @@ class MainWindow(QWidget):
 
         layout.addWidget(label)
 
-        # Button
+        # Checkbox Use Windows Auth
+        useWindowsAuthChk = QCheckBox("Use Windows Authentification")
+
+        useWindowsAuthChk.setChecked(False)
+
+        if appGlobal.login_method == LoginMethod.WIN_AUTH:
+            useWindowsAuthChk.setChecked(True)
+
+        useWindowsAuthChk.checkStateChanged.connect(self.changed_login_method)
+        layout.addWidget(useWindowsAuthChk)
+        self.useWindowsAuthChk = useWindowsAuthChk
+
+        # User defined login credentials
+        layout.addWidget(QLabel("Username: "))
+        editUsername = QLineEdit()
+        editUsername.setEnabled(not useWindowsAuthChk.isChecked())
+        layout.addWidget(editUsername)
+        self.editUsername = editUsername
+
+        layout.addWidget(QLabel("Password: "))
+        editPassword = QLineEdit()
+        editPassword.setEchoMode(QLineEdit.EchoMode.Password)
+        editPassword.setEnabled(not useWindowsAuthChk.isChecked())
+        layout.addWidget(editPassword)
+        self.editPassword = editPassword
+
+        # Select folder
         button = QPushButton("Select folder...")
         button.clicked.connect(self.select_directory)
-
         layout.addWidget(button)
+
+        # Start Server
+        btnStartServer = QPushButton("Start server...")
+        btnStartServer.clicked.connect(self.start_server)
+        layout.addWidget(btnStartServer)
+
+        # Layout
         self.setLayout(layout)
 
     # -----------------------------------------------------------------------------
 
     def select_directory(self):
-        global folder_path, qr_win
+        if not self.useWindowsAuthChk.isChecked():
+            if len(self.editUsername.text()) == 0 or len(self.editPassword.text()) == 0:
+                QMessageBox.information(None,
+                                        "Warning", "Please set your login credentials first!")
+                return
 
         directory = QFileDialog.getExistingDirectory(
             self,
@@ -93,13 +152,37 @@ class MainWindow(QWidget):
         )
 
         if directory:
-            folder_path = directory
+            appGlobal.folder_path = directory
+
+    # -----------------------------------------------------------------------------
+
+    def start_server(self):
+        global qr_win
+
+        if appGlobal.folder_path:
+            if appGlobal.login_method == LoginMethod.USR_AUTH:
+                appGlobal.username = self.editUsername.text()
+                appGlobal.password = self.editPassword.text()
 
             qr_win.gen_qr()
             qr_win.load_qr()
             qr_win.show()
 
-        self.close()
+            self.close()
+        else:
+            QMessageBox.information(None,
+                                    "Warning", "Please select a folder!")
+
+    # -----------------------------------------------------------------------------
+
+    def changed_login_method(self):
+        if self.useWindowsAuthChk.isChecked():
+            appGlobal.login_method = LoginMethod.WIN_AUTH
+        else:
+            appGlobal.login_method = LoginMethod.USR_AUTH
+
+        self.editUsername.setEnabled(appGlobal.login_method == LoginMethod.USR_AUTH)
+        self.editPassword.setEnabled(appGlobal.login_method == LoginMethod.USR_AUTH)
 
 # -----------------------------------------------------------------------------
 
@@ -138,7 +221,7 @@ class QRWindow(QWidget):
         pixmap = QPixmap(image_path)
 
         if pixmap.isNull():
-            print("Fehler: Bild nicht gefunden:", image_path)
+            print("Error: Image not found:", image_path)
 
         self.pic.setPixmap(pixmap)
         self.pic.setScaledContents(True)
@@ -155,8 +238,6 @@ class QRWindow(QWidget):
     # -----------------------------------------------------------------------------
 
     def showEvent(self, event):
-        global app
-
         super().showEvent(event)
 
         if not self._server_started:
@@ -172,7 +253,7 @@ class QRWindow(QWidget):
     # -----------------------------------------------------------------------------
 
     def run_server(self):
-        app.run(host="0.0.0.0", port=PORT, use_reloader=False, debug=False)
+        appGlobal.app.run(host="0.0.0.0", port=appGlobal.PORT, use_reloader=False, debug=False)
 
 # -----------------------------------------------------------------------------
 
@@ -185,47 +266,46 @@ def resource_path(relative_path):
 # -----------------------------------------------------------------------------
 
 def authenticate(username, password):
-    try:
-        token = win32security.LogonUser(username, ".", password,
-            win32security.LOGON32_LOGON_INTERACTIVE, win32security.LOGON32_PROVIDER_DEFAULT)
+    if appGlobal.login_method == LoginMethod.WIN_AUTH:
+        try:
+            token = win32security.LogonUser(username, ".", password,
+                win32security.LOGON32_LOGON_INTERACTIVE, win32security.LOGON32_PROVIDER_DEFAULT)
 
-        return True
-    except Exception as e:
-        print(f"Authentication failed: {e}")
-        return False
+            return True
+        except Exception as e:
+            print(f"Authentication failed: {e}")
+            return False
+    else:
+        return (appGlobal.username == username and appGlobal.password == password)
 
 # -----------------------------------------------------------------------------
 
 def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
-    ip = "http://" + s.getsockname()[0] + ":" + str(PORT)
+    ip = "http://" + s.getsockname()[0] + ":" + str(appGlobal.PORT)
 
     return ip
 
 # -----------------------------------------------------------------------------
 
-@app.route('/')
+@appGlobal.app.route('/')
 def index():
-    global access_granted
-
-    if not access_granted:
+    if not appGlobal.access_granted:
         return redirect(url_for('login'))
 
     return redirect(url_for('access'))
 
 # -----------------------------------------------------------------------------
 
-@app.route('/login', methods=['GET', 'POST'])
+@appGlobal.app.route('/login', methods=['GET', 'POST'])
 def login():
-    global access_granted
-
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
         if authenticate(username, password):
-            access_granted = True
+            appGlobal.access_granted = True
             return redirect(url_for('access'))
         else:
             return render_template('login-failed.html.j2')
@@ -234,28 +314,24 @@ def login():
 
 # -----------------------------------------------------------------------------
 
-@app.route('/access')
+@appGlobal.app.route('/access')
 def access():
-    global access_granted
-
-    if not access_granted:
+    if not appGlobal.access_granted:
         return redirect(url_for('login'))
 
     return redirect(url_for('files'))
 
 # -----------------------------------------------------------------------------
 
-@app.route('/files/', defaults={'req_path': ''})
-@app.route('/files/<path:req_path>')
+@appGlobal.app.route('/files/', defaults={'req_path': ''})
+@appGlobal.app.route('/files/<path:req_path>')
 def files(req_path):
-    global access_granted
-
-    if not access_granted:
+    if not appGlobal.access_granted:
         return redirect(url_for('login'))
 
     # Join the base and the requested path
     # could have done os.path.join, but safe_join ensures that files are not fetched from parent folders of the base folder
-    abs_path = safe_join(folder_path, req_path)
+    abs_path = safe_join(appGlobal.folder_path, req_path)
 
     # Return 404 if path doesn't exist
     if not os.path.exists(abs_path):
@@ -272,7 +348,7 @@ def files(req_path):
         # return file information for rendering
         return {'name': x.name,
                 'f_icon': "bi bi-folder-fill" if os.path.isdir(x.path) else get_icon_class_for_filename(x.name),
-                'rel_path': os.path.relpath(x.path, folder_path).replace("\\", "/"),
+                'rel_path': os.path.relpath(x.path, appGlobal.folder_path).replace("\\", "/"),
                 'm_time': get_time_stamp_string(file_stat.st_mtime),
                 'size': get_readable_byte_size(file_stat.st_size)}
 
@@ -280,7 +356,7 @@ def files(req_path):
 
     # get parent directory url
     parent_folder_path = os.path.relpath(
-        Path(abs_path).parents[0], folder_path).replace("\\", "/")
+        Path(abs_path).parents[0], appGlobal.folder_path).replace("\\", "/")
 
     return render_template('files.html.j2', data={'files': file_objs,
                                                  'parent_folder': parent_folder_path})
@@ -308,8 +384,12 @@ def get_time_stamp_string(t_sec: float) -> str:
 def get_icon_class_for_filename(f_name):
     file_ext = Path(f_name).suffix
     file_ext = file_ext[1:] if file_ext.startswith(".") else file_ext
-    file_types = ["aac", "ai", "bmp", "cs", "css", "csv", "doc", "docx", "exe", "gif", "heic", "html", "java", "jpg", "js", "json", "jsx", "key", "m4p", "md", "mdx", "mov", "mp3",
-                 "mp4", "otf", "pdf", "php", "png", "pptx", "psd", "py", "raw", "rb", "sass", "scss", "sh", "sql", "svg", "tiff", "tsx", "ttf", "txt", "wav", "woff", "xlsx", "xml", "yml"]
+
+    file_types = ["aac", "ai", "bmp", "cs", "css", "csv", "doc", "docx", "exe", "gif", "heic", "html",
+                  "java", "jpg", "js", "json", "jsx", "key", "m4p", "md", "mdx", "mov", "mp3",
+                 "mp4", "otf", "pdf", "php", "png", "pptx", "psd", "py", "raw", "rb", "sass",
+                  "scss", "sh", "sql", "svg", "tiff", "tsx", "ttf", "txt", "wav", "woff", "xlsx", "xml", "yml"]
+
     file_icon_class = f"bi bi-filetype-{file_ext}" if file_ext in file_types else "bi bi-file-earmark"
 
     return file_icon_class
@@ -323,6 +403,15 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 IP = get_ip()
 
 if __name__ == '__main__':
+    version = sys.getwindowsversion()
+
+    if sys.platform != "win32":
+        print("Your operating system is not supported! Windows only!")
+
+    if version.major < 10:
+        print("Your version of Windows is not supported! Windows 10 or later!")
+        sys.exit(-1)
+
     qt_app = QApplication(sys.argv)
 
     window = MainWindow()
@@ -335,4 +424,3 @@ if __name__ == '__main__':
     qt_app.exec()
 
     sys.exit(0)
-
