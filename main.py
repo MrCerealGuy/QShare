@@ -50,6 +50,7 @@ class AppGlobal:
 
         # Server
         self.app = Flask(__name__)
+        self.IP = ""
         self.PORT = 5100
         self.access_granted = False
         self.folder_path = ""
@@ -232,7 +233,7 @@ class QRWindow(QWidget):
         #fn_svg = os.path.dirname(os.path.abspath(__file__)) + '/static/myqr.svg'
         fn_svg = resource_path("static\\myqr.svg")
 
-        url = pyqrcode.create(IP)
+        url = pyqrcode.create(appGlobal.IP)
         url.svg(fn_svg, scale=8)
 
     # -----------------------------------------------------------------------------
@@ -396,12 +397,6 @@ def get_icon_class_for_filename(f_name):
 
 # -----------------------------------------------------------------------------
 
-# changing the directory to access the files desktop with the help of os module
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
-# finding the IP address of the PC
-IP = get_ip()
-
 if __name__ == '__main__':
     version = sys.getwindowsversion()
 
@@ -412,6 +407,13 @@ if __name__ == '__main__':
         print("Your version of Windows is not supported! Windows 10 or later!")
         sys.exit(-1)
 
+    # Change the directory to app path
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+
+    # Finding the IP address of the PC
+    appGlobal.IP = get_ip()
+
+    # Create QT App
     qt_app = QApplication(sys.argv)
 
     window = MainWindow()
@@ -423,4 +425,5 @@ if __name__ == '__main__':
 
     qt_app.exec()
 
+    # Finish!
     sys.exit(0)
