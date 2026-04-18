@@ -12,8 +12,10 @@
 # 2026-07-08 - az - v1.1
 # 2026-04-16 - az - User-defined login credentials; OS platform check
 # 2026-04-16 - az - v1.2
+# 2026-04-18 - az - changed app icon
+# 2026-04-18 - az - v1.2.1
 # -----------------------------------------------------------------------------
-import ipaddress
+
 import sys
 import socket
 import threading
@@ -33,11 +35,6 @@ import pyqrcode
 from flask import Flask, request, render_template, url_for, redirect, abort, send_file
 from pathlib import Path
 from werkzeug.security import safe_join
-import datetime
-from cryptography import x509
-from cryptography.x509.oid import NameOID
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 
 # -----------------------------------------------------------------------------
 
@@ -51,7 +48,7 @@ class AppGlobal:
     def __init__(self):
         # App
         self.title = "QShare App"
-        self.version = "v1.2"
+        self.version = "v1.2.1"
 
         # Server
         self.app = Flask(__name__)
