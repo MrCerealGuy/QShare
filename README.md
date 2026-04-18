@@ -73,7 +73,17 @@ pyinstaller QShare.spec
 EXE (~ 5 MB) + Directory (~ 116 MB):
 
 ```console
-pyinstaller main.py --onedir --add-data "static;static" --add-data "templates;templates"
+pyinstaller main.py --name "QShare" --icon "static\icon-app.ico" --onedir --contents-directory='data' --add-data "static;static" --add-data "templates;templates"
+```
+
+For compression with UPX:
+
+First install UPX from https://upx.github.io/ to C:\upx.
+
+Add following parameter to pyinstaller.
+
+```console
+--upx-dir C:\upx
 ```
 
 # Screenshots
