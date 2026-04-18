@@ -14,6 +14,7 @@ Download an install Python:
 pip install pyqrcode
 pip install pypng
 pip install flask
+pip install cryptography
 pip install pyinstaller
 ```
 

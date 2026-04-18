@@ -13,7 +13,7 @@
 # 2026-04-16 - az - User-defined login credentials; OS platform check
 # 2026-04-16 - az - v1.2
 # -----------------------------------------------------------------------------
-
+import ipaddress
 import sys
 import socket
 import threading
@@ -33,6 +33,11 @@ import pyqrcode
 from flask import Flask, request, render_template, url_for, redirect, abort, send_file
 from pathlib import Path
 from werkzeug.security import safe_join
+import datetime
+from cryptography import x509
+from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 # -----------------------------------------------------------------------------
 
@@ -54,6 +59,7 @@ class AppGlobal:
         self.PORT = 5100
         self.access_granted = False
         self.folder_path = ""
+        self.uses_ssl = False
 
         # Login
         self.login_method = LoginMethod.WIN_AUTH
@@ -110,6 +116,14 @@ class MainWindow(QWidget):
         useWindowsAuthChk.checkStateChanged.connect(self.changed_login_method)
         layout.addWidget(useWindowsAuthChk)
         self.useWindowsAuthChk = useWindowsAuthChk
+
+        # Checkbox SSL
+        useSSLChk = QCheckBox("Use SSL")
+        useSSLChk.setChecked(appGlobal.uses_ssl)
+
+        useSSLChk.checkStateChanged.connect(self.changed_use_ssl)
+        layout.addWidget(useSSLChk)
+        self.useSSLChk = useSSLChk
 
         # User defined login credentials
         layout.addWidget(QLabel("Username: "))
@@ -185,6 +199,11 @@ class MainWindow(QWidget):
         self.editUsername.setEnabled(appGlobal.login_method == LoginMethod.USR_AUTH)
         self.editPassword.setEnabled(appGlobal.login_method == LoginMethod.USR_AUTH)
 
+    # -----------------------------------------------------------------------------
+
+    def changed_use_ssl(self):
+        appGlobal.uses_ssl = self.useSSLChk.isChecked()
+
 # -----------------------------------------------------------------------------
 
 class QRWindow(QWidget):
@@ -215,8 +234,6 @@ class QRWindow(QWidget):
     # -----------------------------------------------------------------------------
 
     def load_qr(self):
-        #base_path = os.path.dirname(os.path.abspath(__file__))
-        #image_path = os.path.join(base_path, "static", "myqr.svg")
         image_path = resource_path("static\\myqr.svg");
 
         pixmap = QPixmap(image_path)
@@ -254,7 +271,80 @@ class QRWindow(QWidget):
     # -----------------------------------------------------------------------------
 
     def run_server(self):
-        appGlobal.app.run(host="0.0.0.0", port=appGlobal.PORT, use_reloader=False, debug=False)
+        if appGlobal.uses_ssl:
+            cert, key = generate_cert()
+            appGlobal.app.run(ssl_context=(cert, key), host="0.0.0.0", port=appGlobal.PORT, use_reloader=False,
+                              debug=False)
+        else:
+            appGlobal.app.run(host="0.0.0.0", port=appGlobal.PORT, use_reloader=False,
+                              debug=False)
+
+# -----------------------------------------------------------------------------
+
+def get_local_ips():
+    hostname = socket.gethostname()
+    ips = set()
+
+    # Hostname-IP
+    try:
+        ips.add(socket.gethostbyname(hostname))
+    except:
+        pass
+
+    # Alle Interfaces (simpler Ansatz)
+    for info in socket.getaddrinfo(hostname, None):
+        ip = info[4][0]
+        if ":" not in ip:  # nur IPv4
+            ips.add(ip)
+
+    # Immer sinnvoll:
+    ips.add("127.0.0.1")
+    ips.add("localhost")
+
+    return list(ips)
+
+# -----------------------------------------------------------------------------
+
+def generate_cert():
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COMMON_NAME, u"Dev Cert"),
+    ])
+
+    san_list = []
+    for ip in get_local_ips():
+        if ip == "localhost":
+            san_list.append(x509.DNSName("localhost"))
+        else:
+            san_list.append(x509.IPAddress(ipaddress.ip_address(ip)))
+
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(subject)
+        .issuer_name(issuer)
+        .public_key(key.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(datetime.datetime.utcnow())
+        .not_valid_after(datetime.datetime.utcnow() + datetime.timedelta(days=1))
+        .add_extension(
+            x509.SubjectAlternativeName(san_list),
+            critical=False
+        )
+        .sign(key, hashes.SHA256())
+    )
+
+    with open("cert.pem", "wb") as f:
+        f.write(cert.public_bytes(serialization.Encoding.PEM))
+
+    with open("key.pem", "wb") as f:
+        f.write(key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.TraditionalOpenSSL,
+            serialization.NoEncryption()
+        ))
+
+    return "cert.pem", "key.pem"
 
 # -----------------------------------------------------------------------------
 
@@ -284,7 +374,13 @@ def authenticate(username, password):
 def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
-    ip = "http://" + s.getsockname()[0] + ":" + str(appGlobal.PORT)
+
+    if appGlobal.uses_ssl:
+        ip = "https://"
+    else:
+        ip = "http://"
+
+    ip = ip + s.getsockname()[0] + ":" + str(appGlobal.PORT)
 
     return ip
 

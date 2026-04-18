@@ -1,0 +1,7 @@
+1. Generated image with:
+https://deepai.org/machine-learning-model/text2img
+
+Prompt: Windows Icon for my App "QShare". A file sharing app.
+
+2. Generated icons from image with:
+https://hotpot.ai/icon-resizer
