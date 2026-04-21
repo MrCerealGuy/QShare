@@ -1,8 +1,8 @@
+<p align="center"><img src="static/icon-app.png"></p>
+
 # QShare
 
 A simple file sharing app for Windows 10/11 -> Mobile written in Python.
-
-<p align="center"><img src="static/icon-app.png"></p>
 
 # Software Requirements
 
