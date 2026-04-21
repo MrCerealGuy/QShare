@@ -14,6 +14,7 @@
 # 2026-04-16 - az - v1.2
 # 2026-04-18 - az - changed app icon
 # 2026-04-18 - az - v1.2.1
+# 2026-04-21 - az - fixed small bug
 # -----------------------------------------------------------------------------
 
 import sys
@@ -402,6 +403,7 @@ if __name__ == '__main__':
 
     if sys.platform != "win32":
         print("Your operating system is not supported! Windows only!")
+        sys.exit(-1)
 
     if version.major < 10:
         print("Your version of Windows is not supported! Windows 10 or later!")

@@ -1,6 +1,8 @@
 # QShare
 
-A simple file sharing app for Windows 10/11 -> Mobile.
+A simple file sharing app for Windows 10/11 -> Mobile written in Python.
+
+![](static/icon-app.png){ width="256" height="256" style="display: block; margin: 0 auto" }
 
 # Software Requirements
 
