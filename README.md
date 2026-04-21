@@ -2,7 +2,7 @@
 
 A simple file sharing app for Windows 10/11 -> Mobile written in Python.
 
-![](static/icon-app.png){:style="display:block; margin-left:auto; margin-right:auto"}
+<p align="center"><img src="static/icon-app.png"></p>
 
 # Software Requirements
 
